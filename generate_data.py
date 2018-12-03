@@ -2,7 +2,7 @@ import random
 import numpy as np
 import copy
 from skimage.io import imsave
-
+import warnings
 
 seed = 7
 np.random.seed(4)
@@ -20,7 +20,7 @@ CENTER = [.5, .5]
 BUTTON_SIZE = 0.1
 END_STUDY_BUTTON_SIZE = .09375
 
-ALLOW_TRANSLATION = True
+ALLOW_TRANSLATION = False
 
 # These are RGB values, they have a fixed luminance in HSL space.
 COLORS = [
@@ -69,7 +69,7 @@ def getRandomCoordinates(limit, step):
 class DataGenerator:
 
   def __init__(self, set_size):
-    print "init"
+    # print "init"
     # self.setup_images()
     self.setup_grid()
     self.setSize = set_size
@@ -120,9 +120,9 @@ class DataGenerator:
     self._vFactor = self.target_pixels_size['height'] / GRID['size']
 
   def _drawSquare(self, location, color):
-    print location
-    print color
-    print self._array.shape
+    # print location
+    # print color
+    # print self._array.shape
     for i in range(len(color)):
       self._array[int(location['bottom']):int(location['top']),
           int(location['left']):int(location['right']),i] = color[i]
@@ -358,10 +358,10 @@ def zero_pad(array):
 
 
 if __name__=='__main__':
-  data_generator = DataGenerator(3)
+  data_generator = DataGenerator(2)
   study_array = data_generator.getStudyArrayData()
   test_array, n = data_generator.getTestArray(study_array)
-  data_size = 60000
+  data_size = 250000
 
   for i in range(data_size):
     study_array = data_generator.getStudyArrayData()
@@ -369,10 +369,15 @@ if __name__=='__main__':
     study_image = zero_pad(data_generator.renderArray(study_array))
     test_image = zero_pad(data_generator.renderArray(test_array))
     if n:
-      imsave('/data/kvg245/1/'+"%05d" % i+'a.png',study_image)
-      imsave('/data/kvg245/1/'+"%05d" % i+'b.png',test_image)
+      with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        imsave('/data/kvg245/1/'+"%07d" % i+'a.png',study_image)
+        imsave('/data/kvg245/1/'+"%07d" % i+'b.png',test_image)
     else:
-      imsave('/data/kvg245/2/'+"%05d" % i+'a.png',study_image)
-      imsave('/data/kvg245/2/'+"%05d" % i+'b.png',test_image)
-    print i
+      with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        imsave('/data/kvg245/0/'+"%07d" % i+'a.png',study_image)
+        imsave('/data/kvg245/0/'+"%07d" % i+'b.png',test_image)
+    if i%1000==0:
+      print i
     

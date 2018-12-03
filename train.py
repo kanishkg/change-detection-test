@@ -9,7 +9,8 @@ from models import *
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 print(device)
-PATH = '/data/kvg245/change_test/checkpoints'
+PATH = '/data/kvg245/change_test/checkpoints/train.ckpt'
+print "Loading data"
 change_detection_dataset = ChangeDetectionDataset(data_dir='/data/kvg245/',
                                                   transforms = transforms.Compose([
                                                     transforms.ToTensor()
@@ -30,7 +31,10 @@ val_loader = torch.utils.data.DataLoader(val_dataset,
 test_loader = torch.utils.data.DataLoader(test_dataset,
                                                  batch_size=batch_size, shuffle=False, num_workers=4)
 
-model = SiameseOpnet()
+print "Building model"
+model = Siamese().to(device)
+
+
 print model
 
 criterion = nn.CrossEntropyLoss()
@@ -39,6 +43,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 for epoch in range(num_epochs):
   for i, sample in enumerate(train_loader):
     optimizer.zero_grad()
+    sample['a'] = sample['a'].cuda()
+    sample['b'] = sample['b'].cuda()
+    sample['c'] = sample['c'].cuda()
     outputs = model(sample['a'], sample['b'])
     loss = criterion(outputs, sample['c'])
     loss.backward()
@@ -53,6 +60,10 @@ for epoch in range(num_epochs):
   total = 0
 
   for sample in val_loader:
+    sample['a'] = sample['a'].cuda()
+    sample['b'] = sample['b'].cuda()
+    sample['c'] = sample['c'].cuda()
+ 
     outputs = model(sample['a'], sample['b'])
     _, predicted = torch.max(outputs.data, 1)
     total += sample['c'].size(0)
@@ -64,6 +75,10 @@ correct = 0
 total = 0
 
 for sample in test_loader:
+  sample['a'] = sample['a'].cuda()
+  sample['b'] = sample['b'].cuda()
+  sample['c'] = sample['c'].cuda()
+ 
   outputs = model(sample['a'], sample['b'])
   _, predicted = torch.max(outputs.data, 1)
   total += sample['c'].size(0)

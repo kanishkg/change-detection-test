@@ -11,6 +11,43 @@ base_conv_cfg = {
     'kernel': [8,4],
     'pool': [False,False]}
 
+alt_base_conv_cfg = {
+    'num_layers':4,
+    'inp': [3, 16, 32, 32],
+    'out': [16, 32, 32, 64],
+    'stride': [1,2,1,2],
+    'kernel': [4,4,2,2],
+    'pool': [False,False,False,False]}
+
+alt = {
+    'num_layers':5,
+    'inp': [3, 32, 32, 64, 64],
+    'out': [32, 32, 64, 64, 256],
+    'stride': [2,2,2,2,1],
+    'kernel': [4,4,4,4,4],
+    'padding':[1,1,1,1,0],
+    'pool': [False,False,False,False,False]}
+decon_alt = {
+    'num_layers':5,
+    'inp': [3, 32, 32, 64, 64],
+    'out': [32, 32, 64, 64, 256],
+    'stride': [2,2,2,2,1],
+    'kernel': [4,4,4,4,4],
+    'padding':[1,1,1,1,0],
+    'pool': [False,False,False,False,False]}
+
+big_conv_cfg = {
+    'num_layers':4,
+    'inp': [3, 16, 32, 32],
+    'out': [16, 32, 32, 64],
+    'stride': [2,2,2,2],
+    'kernel': [8,4,2,2],
+    'padding': [0, 1, 1, 1],
+    'pool': [False,False,False,False]}
+
+
+
+
 stack_conv_cfg = {
     'num_layers':2,
     'inp': [6,32],
@@ -33,12 +70,15 @@ class DeConvBlock(nn.Module):
         cfg['out'][l],
         cfg['inp'][l],
         cfg['kernel'][l],
-        cfg['stride'][l]
+        cfg['stride'][l],
+        cfg['padding'][l]
         ), nn.ReLU()]
 
   def forward(self,x):
     for layer in self.layers:
-       x = layer(x)
+      x = layer(x)
+    #J  print x.shape
+
     return x
 
 class ConvBlock(nn.Module):
@@ -52,12 +92,14 @@ class ConvBlock(nn.Module):
         cfg['inp'][l],
         cfg['out'][l],
         cfg['kernel'][l],
-        cfg['stride'][l]
+        cfg['stride'][l],
+        cfg['padding'][l]
         ), nn.ReLU()]
 
   def forward(self,x):
     for layer in self.layers:
-       x = layer(x)
+      x = layer(x)
+    #  print x.shape
     return x
 
 class MiniVAE(nn.Module):
@@ -65,14 +107,12 @@ class MiniVAE(nn.Module):
     super(MiniVAE, self).__init__()
 
     self.hidden_size = hidden_size
-    self.conv_block = ConvBlock(base_conv_cfg)
-    self.fc_enc = nn.Linear(2592, hidden_size*2)
-    self.fc_enc_m = nn.Linear(hidden_size*2, hidden_size)
-    self.fc_enc_s = nn.Linear(hidden_size*2, hidden_size)
-    
-    self.fc_dec = nn.Linear(hidden_size, hidden_size*2)
-    self.fc_dec2 = nn.Linear(hidden_size*2, 2592)
-    self.deconv_block = DeConvBlock(base_conv_cfg)
+    self.conv_block = ConvBlock(alt)
+    self.fc_enc_m = nn.Linear(hidden_size, hidden_size/2)
+    self.fc_enc_s = nn.Linear(hidden_size, hidden_size/2)
+
+    self.fc_dec = nn.Linear(hidden_size/2, hidden_size)
+    self.deconv_block = DeConvBlock(decon_alt)
 
   def reparameterize(self, mu, logvar):
     std = torch.exp(0.5*logvar)
@@ -81,16 +121,14 @@ class MiniVAE(nn.Module):
 
   def encode(self, x):
     x = self.conv_block(x)
-    x = x.view(-1, 2592)
-    x = F.relu(self.fc_enc(x))
+    x = x.view(-1,256)
     mu = F.relu(self.fc_enc_m(x))
     logvar = F.relu(self.fc_enc_s(x))
     return mu, logvar
     
   def decode(self, z):
     y = F.relu(self.fc_dec(z))
-    y = F.relu(self.fc_dec2(y))
-    y = y.view(-1, 32, 9, 9)
+    y = y.view(-1, 256, 1, 1)
     y = self.deconv_block(y)
     return y
 
@@ -133,14 +171,14 @@ class Siamese(nn.Module):
 
     self.conv_block = ConvBlock(base_conv_cfg)
     self.hidden_size = hidden_size
-    self.fc1 = nn.Linear(5184, hidden_size)
+    self.fc1 = nn.Linear(1152*2, hidden_size)
     self.fc2 = nn.Linear(hidden_size, 2)
 
   def forward(self, x, y):
     x = self.conv_block(x)
     y = self.conv_block(y)
-    x = x.view(-1,2592)
-    y = y.view(-1,2592)
+    x = x.view(-1,1152)
+    y = y.view(-1,1152)
     out = torch.cat([x,y],1)
     out = F.relu(self.fc1(out))
     out = self.fc2(out)
